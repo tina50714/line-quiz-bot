@@ -39,10 +39,10 @@ const questions = [
 
 // 結果對應（依總分區間）
 function getResult(totalScore) {
-  if (totalScore <= 3) return '停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
-  else if (totalScore <= 6) return '小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
-  else if (totalScore <= 9) return '紅腫魔王 · 腐氣天君\n傷口可能處於「發炎期或感染期」\n建議：加強清潔與換藥頻率，注意是否需醫師評估使用抗生素或清創。';
-  else return '黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
+  if (totalScore <= 3) return '💤停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
+  else if (totalScore <= 6) return '🌱小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
+  else if (totalScore <= 9) return '🔥紅腫魔王 · 腐氣天君\n傷口可能處於「發炎期或感染期」\n建議：加強清潔與換藥頻率，注意是否需醫師評估使用抗生素或清創。';
+  else return '⚫️黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
 }
 
 // Webhook
@@ -82,10 +82,10 @@ async function handleEvent(event) {
   if (session.step < questions.length) {
     const q = questions[session.step];
     const optionsText = Object.entries(q.options)
-      .map(([k,v]) => ${k}: ${v}).join('\n');
+      .map(([k,v]) => `${k}: ${v}`).join('\n');
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: ${q.q}\n${optionsText}
+      text: `${q.q}\n${optionsText}`
     });
   }
 
@@ -103,10 +103,11 @@ async function handleEvent(event) {
 
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: 🎯 測驗完成！\n總分: ${totalScore}\n${resultText}
+    text: `🎯 測驗完成！\n總分: ${totalScore}\n${resultText}`
   });
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(LINE Bot running at port ${port}));
+app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
