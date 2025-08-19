@@ -37,7 +37,7 @@ const questions = [
   }
 ];
 
-// 結果對應（依總分區間）
+// 結果對應
 function getResult(totalScore) {
   if (totalScore <= 3) return '停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
   else if (totalScore <= 6) return '小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
@@ -55,29 +55,27 @@ app.post('/webhook', line.middleware(config), (req, res) => {
     });
 });
 
-// 送出題目函式（帶 Quick Reply 按鈕，點按不顯示文字）
+// 送出題目函式（帶 Quick Reply 按鈕）
 function sendQuestion(replyToken, session) {
   const q = questions[session.step];
   const quickReplyItems = Object.keys(q.options).map(key => ({
     type: 'action',
     action: {
       type: 'postback',
-      label: `${key}: ${q.options[key]}`, // 按鈕上顯示完整選項
+      label: `${key}: ${q.options[key]}`, 
       data: `answer=${key}`,
-      displayText: '' // 留空，不顯示在聊天框
+      displayText: '' // 點按不顯示文字
     }
   }));
 
   return client.replyMessage(replyToken, {
     type: 'text',
     text: q.q,
-    quickReply: {
-      items: quickReplyItems
-    }
+    quickReply: { items: quickReplyItems }
   });
 }
 
-// 送出測驗結果，並提供「重新測驗」按鈕
+// 送出測驗結果
 function sendResult(replyToken, totalScore) {
   const resultText = getResult(totalScore);
 
@@ -92,7 +90,7 @@ function sendResult(replyToken, totalScore) {
             type: 'postback',
             label: '重新測驗',
             data: 'action=quiz_start',
-            displayText: '' // 點擊不顯示文字
+            displayText: ''
           }
         }
       ]
@@ -104,56 +102,68 @@ function sendResult(replyToken, totalScore) {
 async function handleEvent(event) {
   const userId = event.source.userId;
 
-  // 先處理 postback 事件
-  if (event.type === 'postback') {
-    const data = event.postback.data;
+  // 處理文字訊息，用「試煉開始」觸發測驗
+  if (event.type === 'message' && event.message.type === 'text') {
+    const text = event.message.text.trim();
 
-    // 開始測驗
-    if (data === 'action=quiz_start') {
-      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-      else {
-        // 重新開始測驗
-        userSessions[userId].step = 0;
-        userSessions[userId].answers = [];
-      }
+    if (text === '試煉開始') {
+      // 初始化用戶 session
+      userSessions[userId] = { step: 0, answers: [] };
       const session = userSessions[userId];
       return sendQuestion(event.replyToken, session);
     }
 
-    // 回答 A/B/C/D
-    if (data.startsWith('answer=')) {
-      const answer = data.split('=')[1];
-      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-      const session = userSessions[userId];
-
-      session.answers.push(answer);
-      session.step++;
-
-      // 如果題目還沒做完，送下一題
-      if (session.step < questions.length) {
-        return sendQuestion(event.replyToken, session);
-      }
-
-      // 測驗完成
-      let totalScore = 0;
-      session.answers.forEach((ans, idx) => {
-        totalScore += questions[idx].scores[ans] || 0;
+    // 如果正在測驗中且用戶按了按鈕回傳的 displayText
+    if (userSessions[userId]) {
+      return handlePostback({ 
+        source: { userId }, 
+        postback: { data: `answer=${text}` }, 
+        replyToken: event.replyToken, 
+        type: 'postback'
       });
-
-      // 清空 session
-      session.step = 0;
-      session.answers = [];
-
-      // 送結果並提供重新測驗按鈕
-      return sendResult(event.replyToken, totalScore);
     }
   }
 
-  // 其他訊息
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: '請點選圖文選單開始測驗，並用按鈕回答每一題。'
+    text: '請點選圖文選單「試煉開始」開始測驗，並用按鈕回答每一題。'
   });
+}
+
+// 處理 postback 事件
+async function handlePostback(event) {
+  const userId = event.source.userId;
+  const data = event.postback.data;
+
+  if (data === 'action=quiz_start') {
+    userSessions[userId] = { step: 0, answers: [] };
+    const session = userSessions[userId];
+    return sendQuestion(event.replyToken, session);
+  }
+
+  if (data.startsWith('answer=')) {
+    const answer = data.split('=')[1];
+    if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
+    const session = userSessions[userId];
+
+    session.answers.push(answer);
+    session.step++;
+
+    if (session.step < questions.length) {
+      return sendQuestion(event.replyToken, session);
+    }
+
+    // 測驗完成
+    let totalScore = 0;
+    session.answers.forEach((ans, idx) => {
+      totalScore += questions[idx].scores[ans] || 0;
+    });
+
+    session.step = 0;
+    session.answers = [];
+
+    return sendResult(event.replyToken, totalScore);
+  }
 }
 
 // 啟動伺服器
