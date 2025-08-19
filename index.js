@@ -65,36 +65,21 @@ async function handleEvent(event) {
 
   const msg = event.message.text;
 
-  // 判斷是否點擊「試煉開始」
+  // 點擊「試煉開始」
   if (msg === '試煉開始') {
-    // 重置 session
     session.step = 0;
     session.answers = [];
-
-    const q = questions[0];
-    const optionsText = Object.entries(q.options)
-      .map(([k,v]) => `${k}: ${v}`).join('\n');
-
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: `🎯 測驗開始！\n${q.q}\n${optionsText}`
-    });
+    return client.replyMessage(event.replyToken, getQuestionMessage(0));
   }
 
-  // 如果已經開始測驗，接收 A/B/C/D
+  // 點選 A/B/C/D
   if (['A','B','C','D'].includes(msg.toUpperCase())) {
     session.answers.push(msg.toUpperCase());
     session.step++;
 
-    // 如果題目還沒做完
     if (session.step < questions.length) {
-      const q = questions[session.step];
-      const optionsText = Object.entries(q.options)
-        .map(([k,v]) => `${k}: ${v}`).join('\n');
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `${q.q}\n${optionsText}`
-      });
+      // 送下一題
+      return client.replyMessage(event.replyToken, getQuestionMessage(session.step));
     }
 
     // 計算總分
@@ -102,7 +87,6 @@ async function handleEvent(event) {
     session.answers.forEach((ans, idx) => {
       totalScore += questions[idx].scores[ans] || 0;
     });
-
     const resultText = getResult(totalScore);
 
     // 清空 session
@@ -118,12 +102,13 @@ async function handleEvent(event) {
   // 非測驗文字回應
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: '請點擊「試煉開始」來啟動測驗，或輸入 A/B/C/D 選擇答案。'
+    text: '請點擊「試煉開始」來啟動測驗。'
   });
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
 
 
