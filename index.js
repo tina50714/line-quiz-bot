@@ -55,59 +55,107 @@ app.post('/webhook', line.middleware(config), (req, res) => {
     });
 });
 
-// 事件處理
-async function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') return null;
+// 送出題目函式（帶 Quick Reply 按鈕，點按不顯示文字）
+function sendQuestion(replyToken, session) {
+  const q = questions[session.step];
+  const quickReplyItems = Object.keys(q.options).map(key => ({
+    type: 'action',
+    action: {
+      type: 'postback',
+      label: `${key}: ${q.options[key]}`, // 按鈕上顯示完整選項
+      data: `answer=${key}`,
+      displayText: '' // 留空，不顯示在聊天框
+    }
+  }));
 
-  const userId = event.source.userId;
-  if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-
-  const session = userSessions[userId];
-
-  // 如果已經完成4題，重新開始
-  if (session.step >= questions.length) {
-    session.step = 0;
-    session.answers = [];
-  }
-
-  const msg = event.message.text.toUpperCase();
-
-  // 如果輸入是選項 A/B/C/D
-  if (['A','B','C','D'].includes(msg)) {
-    session.answers.push(msg);
-    session.step++;
-  }
-
-  // 如果題目還沒做完，送下一題
-  if (session.step < questions.length) {
-    const q = questions[session.step];
-    const optionsText = Object.entries(q.options)
-      .map(([k,v]) => `${k}: ${v}`).join('\n');
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: `${q.q}\n${optionsText}`
-    });
-  }
-
-  // 計算總分
-  let totalScore = 0;
-  session.answers.forEach((ans, idx) => {
-    totalScore += questions[idx].scores[ans] || 0;
+  return client.replyMessage(replyToken, {
+    type: 'text',
+    text: q.q,
+    quickReply: {
+      items: quickReplyItems
+    }
   });
+}
 
+// 送出測驗結果，並提供「重新測驗」按鈕
+function sendResult(replyToken, totalScore) {
   const resultText = getResult(totalScore);
 
-  // 清空 session，方便重新測驗
-  session.step = 0;
-  session.answers = [];
+  return client.replyMessage(replyToken, {
+    type: 'text',
+    text: `🎯 測驗完成！\n總分: ${totalScore}\n${resultText}`,
+    quickReply: {
+      items: [
+        {
+          type: 'action',
+          action: {
+            type: 'postback',
+            label: '重新測驗',
+            data: 'action=quiz_start',
+            displayText: '' // 點擊不顯示文字
+          }
+        }
+      ]
+    }
+  });
+}
 
+// 事件處理
+async function handleEvent(event) {
+  const userId = event.source.userId;
+
+  // 先處理 postback 事件
+  if (event.type === 'postback') {
+    const data = event.postback.data;
+
+    // 開始測驗
+    if (data === 'action=quiz_start') {
+      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
+      else {
+        // 重新開始測驗
+        userSessions[userId].step = 0;
+        userSessions[userId].answers = [];
+      }
+      const session = userSessions[userId];
+      return sendQuestion(event.replyToken, session);
+    }
+
+    // 回答 A/B/C/D
+    if (data.startsWith('answer=')) {
+      const answer = data.split('=')[1];
+      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
+      const session = userSessions[userId];
+
+      session.answers.push(answer);
+      session.step++;
+
+      // 如果題目還沒做完，送下一題
+      if (session.step < questions.length) {
+        return sendQuestion(event.replyToken, session);
+      }
+
+      // 測驗完成
+      let totalScore = 0;
+      session.answers.forEach((ans, idx) => {
+        totalScore += questions[idx].scores[ans] || 0;
+      });
+
+      // 清空 session
+      session.step = 0;
+      session.answers = [];
+
+      // 送結果並提供重新測驗按鈕
+      return sendResult(event.replyToken, totalScore);
+    }
+  }
+
+  // 其他訊息
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `🎯 測驗完成！\n總分: ${totalScore}\n${resultText}`
+    text: '請點選圖文選單開始測驗，並用按鈕回答每一題。'
   });
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
-
