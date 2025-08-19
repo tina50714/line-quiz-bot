@@ -9,9 +9,7 @@ const config = {
 
 const client = new line.Client(config);
 const app = express();
-
-// ✅ 確保能解析 JSON
-app.use(express.json());
+app.use(express.json()); // ✅ 確保能解析 JSON
 
 // 儲存用戶答案暫存
 const userSessions = {};
@@ -93,72 +91,80 @@ function sendResult(replyToken, totalScore) {
 
 // 事件處理
 async function handleEvent(event) {
-  const userId = event.source.userId;
+  try {
+    const userId = event.source.userId;
 
-  // 文字訊息 → 「試煉開始」
-  if (event.type === 'message' && event.message.type === 'text') {
-    const text = event.message.text.trim();
+    // 文字訊息 → 「試煉開始」
+    if (event.type === 'message' && event.message.type === 'text') {
+      const text = event.message.text.trim();
 
-    if (text === '試煉開始') {
-      userSessions[userId] = { step: 0, answers: [] };
-      return sendQuestion(event.replyToken, userSessions[userId]);
-    }
-
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '請輸入「試煉開始」來進行測驗，或點選按鈕作答。'
-    });
-  }
-
-  // Postback → 按鈕事件
-  if (event.type === 'postback') {
-    const data = event.postback.data;
-
-    // 重新開始
-    if (data === 'action=quiz_start') {
-      userSessions[userId] = { step: 0, answers: [] };
-      return sendQuestion(event.replyToken, userSessions[userId]);
-    }
-
-    // 回答題目
-    if (data.startsWith('answer=')) {
-      const answer = data.split('=')[1];
-      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-      const session = userSessions[userId];
-
-      session.answers.push(answer);
-      session.step++;
-
-      // 還有題目 → 出下一題
-      if (session.step < questions.length) {
-        return sendQuestion(event.replyToken, session);
+      if (text === '試煉開始') {
+        userSessions[userId] = { step: 0, answers: [] };
+        return sendQuestion(event.replyToken, userSessions[userId]);
       }
 
-      // 測驗完成 → 計算分數
-      let totalScore = 0;
-      session.answers.forEach((ans, idx) => {
-        totalScore += questions[idx].scores[ans] || 0;
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '請輸入「試煉開始」來進行測驗，或點選按鈕作答。'
       });
-
-      // 清空 session
-      session.step = 0;
-      session.answers = [];
-
-      return sendResult(event.replyToken, totalScore);
     }
-  }
 
-  return null;
+    // Postback → 按鈕事件
+    if (event.type === 'postback') {
+      const data = event.postback.data;
+
+      // 重新開始
+      if (data === 'action=quiz_start') {
+        userSessions[userId] = { step: 0, answers: [] };
+        return sendQuestion(event.replyToken, userSessions[userId]);
+      }
+
+      // 回答題目
+      if (data.startsWith('answer=')) {
+        const answer = data.split('=')[1];
+        if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
+        const session = userSessions[userId];
+
+        session.answers.push(answer);
+        session.step++;
+
+        // 還有題目 → 出下一題
+        if (session.step < questions.length) {
+          return sendQuestion(event.replyToken, session);
+        }
+
+        // 測驗完成 → 計算分數
+        let totalScore = 0;
+        session.answers.forEach((ans, idx) => {
+          totalScore += questions[idx].scores[ans] || 0;
+        });
+
+        // 清空 session
+        delete userSessions[userId];
+
+        return sendResult(event.replyToken, totalScore);
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.error('handleEvent error:', err);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '系統發生錯誤，請稍後再試。'
+    });
+  }
 }
 
 // Webhook
-app.post('/webhook', line.middleware(config), (req, res) => {
-  Promise.all(req.body.events.map(handleEvent))
-    .then(result => res.json(result))
-    .catch(err => {
-      console.error(err);
-      res.status(500).end();
-    });
+app.post('/webhook', line.middleware(config), async (req, res) => {
+  try {
+    await Promise.all(req.body.events.map(handleEvent));
+    res.sendStatus(200); // ✅ 確保 LINE webhook 200
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.sendStatus(200); // 即使錯誤也回 200 避免 LINE 報錯
+  }
 });
 
 // 啟動伺服器
