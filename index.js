@@ -9,7 +9,6 @@ const config = {
 
 const client = new line.Client(config);
 const app = express();
-app.use(express.json()); // ✅ 確保能解析 JSON
 
 // 儲存用戶答案暫存
 const userSessions = {};
@@ -46,127 +45,68 @@ function getResult(totalScore) {
   else return '黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
 }
 
-// 出題：送題目 + Quick Reply 按鈕
-function sendQuestion(replyToken, session) {
-  const q = questions[session.step];
-  const quickReplyItems = Object.keys(q.options).map(key => ({
-    type: 'action',
-    action: {
-      type: 'postback',
-      label: `${key}: ${q.options[key]}`,
-      data: `answer=${key}`,
-      displayText: '' // 按下後不回傳文字
-    }
-  }));
-
-  return client.replyMessage(replyToken, {
-    type: 'text',
-    text: q.q,
-    quickReply: { items: quickReplyItems }
-  });
-}
-
-// 送結果 + 「重新測驗」按鈕
-function sendResult(replyToken, totalScore) {
-  const resultText = getResult(totalScore);
-
-  return client.replyMessage(replyToken, {
-    type: 'text',
-    text: `🎯 測驗完成！\n總分: ${totalScore}\n${resultText}`,
-    quickReply: {
-      items: [
-        {
-          type: 'action',
-          action: {
-            type: 'postback',
-            label: '重新測驗',
-            data: 'action=quiz_start',
-            displayText: ''
-          }
-        }
-      ]
-    }
-  });
-}
+// Webhook
+app.post('/webhook', line.middleware(config), (req, res) => {
+  Promise.all(req.body.events.map(handleEvent))
+    .then(result => res.json(result))
+    .catch(err => {
+      console.error(err);
+      res.status(500).end();
+    });
+});
 
 // 事件處理
 async function handleEvent(event) {
-  try {
-    const userId = event.source.userId;
+  if (event.type !== 'message' || event.message.type !== 'text') return null;
 
-    // 文字訊息 → 「試煉開始」
-    if (event.type === 'message' && event.message.type === 'text') {
-      const text = event.message.text.trim();
+  const userId = event.source.userId;
+  if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
 
-      if (text === '試煉開始') {
-        userSessions[userId] = { step: 0, answers: [] };
-        return sendQuestion(event.replyToken, userSessions[userId]);
-      }
+  const session = userSessions[userId];
 
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '請輸入「試煉開始」來進行測驗，或點選按鈕作答。'
-      });
-    }
+  // 如果已經完成4題，重新開始
+  if (session.step >= questions.length) {
+    session.step = 0;
+    session.answers = [];
+  }
 
-    // Postback → 按鈕事件
-    if (event.type === 'postback') {
-      const data = event.postback.data;
+  const msg = event.message.text.toUpperCase();
 
-      // 重新開始
-      if (data === 'action=quiz_start') {
-        userSessions[userId] = { step: 0, answers: [] };
-        return sendQuestion(event.replyToken, userSessions[userId]);
-      }
+  // 如果輸入是選項 A/B/C/D
+  if (['A','B','C','D'].includes(msg)) {
+    session.answers.push(msg);
+    session.step++;
+  }
 
-      // 回答題目
-      if (data.startsWith('answer=')) {
-        const answer = data.split('=')[1];
-        if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-        const session = userSessions[userId];
-
-        session.answers.push(answer);
-        session.step++;
-
-        // 還有題目 → 出下一題
-        if (session.step < questions.length) {
-          return sendQuestion(event.replyToken, session);
-        }
-
-        // 測驗完成 → 計算分數
-        let totalScore = 0;
-        session.answers.forEach((ans, idx) => {
-          totalScore += questions[idx].scores[ans] || 0;
-        });
-
-        // 清空 session
-        delete userSessions[userId];
-
-        return sendResult(event.replyToken, totalScore);
-      }
-    }
-
-    return null;
-  } catch (err) {
-    console.error('handleEvent error:', err);
+  // 如果題目還沒做完，送下一題
+  if (session.step < questions.length) {
+    const q = questions[session.step];
+    const optionsText = Object.entries(q.options)
+      .map(([k,v]) => ${k}: ${v}).join('\n');
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '系統發生錯誤，請稍後再試。'
+      text: ${q.q}\n${optionsText}
     });
   }
-}
 
-// Webhook
-app.post('/webhook', line.middleware(config), async (req, res) => {
-  try {
-    await Promise.all(req.body.events.map(handleEvent));
-    res.sendStatus(200); // ✅ 確保 LINE webhook 200
-  } catch (err) {
-    console.error('Webhook error:', err);
-    res.sendStatus(200); // 即使錯誤也回 200 避免 LINE 報錯
-  }
-});
+  // 計算總分
+  let totalScore = 0;
+  session.answers.forEach((ans, idx) => {
+    totalScore += questions[idx].scores[ans] || 0;
+  });
+
+  const resultText = getResult(totalScore);
+
+  // 清空 session，方便重新測驗
+  session.step = 0;
+  session.answers = [];
+
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: 🎯 測驗完成！\n總分: ${totalScore}\n${resultText}
+  });
+}
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+app.listen(port, () => console.log(LINE Bot running at port ${port}));
