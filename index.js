@@ -10,9 +10,6 @@ const config = {
 const client = new line.Client(config);
 const app = express();
 
-// ✅ 解析 JSON
-app.use(express.json());
-
 // 儲存用戶答案暫存
 const userSessions = {};
 
@@ -42,29 +39,10 @@ const questions = [
 
 // 結果對應（依總分區間）
 function getResult(totalScore) {
-  if (totalScore <= 3) return '💤停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
-  else if (totalScore <= 6) return '🌱小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
-  else if (totalScore <= 9) return '🔥紅腫魔王 · 腐氣天君\n傷口可能處於「發炎期或感染期」\n建議：加強清潔與換藥頻率，注意是否需醫師評估使用抗生素或清創。';
-  else return '⚫️黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
-}
-
-// 產生題目訊息（Quick Reply）
-function getQuestionMessage(step) {
-  const q = questions[step];
-  return {
-    type: 'text',
-    text: q.q,
-    quickReply: {
-      items: Object.entries(q.options).map(([k, v]) => ({
-        type: 'action',
-        action: {
-          type: 'message',
-          label: `${k}: ${v}`,
-          text: k  // 回傳 A/B/C/D
-        }
-      }))
-    }
-  };
+  if (totalScore <= 3) return '停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
+  else if (totalScore <= 6) return '小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
+  else if (totalScore <= 9) return '紅腫魔王 · 腐氣天君\n傷口可能處於「發炎期或感染期」\n建議：加強清潔與換藥頻率，注意是否需醫師評估使用抗生素或清創。';
+  else return '黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
 }
 
 // Webhook
@@ -87,21 +65,36 @@ async function handleEvent(event) {
 
   const msg = event.message.text;
 
-  // 點擊「試煉開始」
+  // 判斷是否點擊「試煉開始」
   if (msg === '試煉開始') {
+    // 重置 session
     session.step = 0;
     session.answers = [];
-    return client.replyMessage(event.replyToken, getQuestionMessage(0));
+
+    const q = questions[0];
+    const optionsText = Object.entries(q.options)
+      .map(([k,v]) => `${k}: ${v}`).join('\n');
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `🎯 測驗開始！\n${q.q}\n${optionsText}`
+    });
   }
 
-  // 點選 A/B/C/D
+  // 如果已經開始測驗，接收 A/B/C/D
   if (['A','B','C','D'].includes(msg.toUpperCase())) {
     session.answers.push(msg.toUpperCase());
     session.step++;
 
+    // 如果題目還沒做完
     if (session.step < questions.length) {
-      // 送下一題
-      return client.replyMessage(event.replyToken, getQuestionMessage(session.step));
+      const q = questions[session.step];
+      const optionsText = Object.entries(q.options)
+        .map(([k,v]) => `${k}: ${v}`).join('\n');
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `${q.q}\n${optionsText}`
+      });
     }
 
     // 計算總分
@@ -109,6 +102,7 @@ async function handleEvent(event) {
     session.answers.forEach((ans, idx) => {
       totalScore += questions[idx].scores[ans] || 0;
     });
+
     const resultText = getResult(totalScore);
 
     // 清空 session
@@ -124,13 +118,14 @@ async function handleEvent(event) {
   // 非測驗文字回應
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: '請點擊圖文選單「試煉開始」來啟動測驗。'
+    text: '請點擊「試煉開始」來啟動測驗，或輸入 A/B/C/D 選擇答案。'
   });
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
 
 
 
