@@ -10,6 +10,9 @@ const config = {
 const client = new line.Client(config);
 const app = express();
 
+// ✅ 確保能解析 JSON
+app.use(express.json());
+
 // 儲存用戶答案暫存
 const userSessions = {};
 
@@ -54,7 +57,7 @@ function sendQuestion(replyToken, session) {
       type: 'postback',
       label: `${key}: ${q.options[key]}`,
       data: `answer=${key}`,
-      displayText: '' // 不顯示文字
+      displayText: '' // 按下後不回傳文字
     }
   }));
 
@@ -92,7 +95,7 @@ function sendResult(replyToken, totalScore) {
 async function handleEvent(event) {
   const userId = event.source.userId;
 
-  // 文字事件 → 「試煉開始」
+  // 文字訊息 → 「試煉開始」
   if (event.type === 'message' && event.message.type === 'text') {
     const text = event.message.text.trim();
 
@@ -107,7 +110,7 @@ async function handleEvent(event) {
     });
   }
 
-  // 按鈕 Postback
+  // Postback → 按鈕事件
   if (event.type === 'postback') {
     const data = event.postback.data;
 
