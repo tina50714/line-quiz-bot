@@ -45,7 +45,7 @@ function getResult(totalScore) {
   else return '黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
 }
 
-// 送出題目函式（帶 Quick Reply 按鈕，點按不顯示文字）
+// 出題：送題目 + Quick Reply 按鈕
 function sendQuestion(replyToken, session) {
   const q = questions[session.step];
   const quickReplyItems = Object.keys(q.options).map(key => ({
@@ -65,7 +65,7 @@ function sendQuestion(replyToken, session) {
   });
 }
 
-// 送出測驗結果，並提供「重新測驗」按鈕
+// 送結果 + 「重新測驗」按鈕
 function sendResult(replyToken, totalScore) {
   const resultText = getResult(totalScore);
 
@@ -88,46 +88,36 @@ function sendResult(replyToken, totalScore) {
   });
 }
 
-// 處理事件
+// 事件處理
 async function handleEvent(event) {
   const userId = event.source.userId;
 
-  // 文字訊息觸發「試煉開始」
+  // 文字事件 → 「試煉開始」
   if (event.type === 'message' && event.message.type === 'text') {
     const text = event.message.text.trim();
 
     if (text === '試煉開始') {
-      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-      else {
-        userSessions[userId].step = 0;
-        userSessions[userId].answers = [];
-      }
-      const session = userSessions[userId];
-      return sendQuestion(event.replyToken, session);
-    } else {
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '請點選圖文選單武林試煉榜，或輸入「試煉開始」來開始測驗。'
-      });
+      userSessions[userId] = { step: 0, answers: [] };
+      return sendQuestion(event.replyToken, userSessions[userId]);
     }
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '請輸入「試煉開始」來進行測驗，或點選按鈕作答。'
+    });
   }
 
-  // Postback 事件（按鈕觸發）
+  // 按鈕 Postback
   if (event.type === 'postback') {
     const data = event.postback.data;
 
-    // 開始測驗
+    // 重新開始
     if (data === 'action=quiz_start') {
-      if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
-      else {
-        userSessions[userId].step = 0;
-        userSessions[userId].answers = [];
-      }
-      const session = userSessions[userId];
-      return sendQuestion(event.replyToken, session);
+      userSessions[userId] = { step: 0, answers: [] };
+      return sendQuestion(event.replyToken, userSessions[userId]);
     }
 
-    // 回答 A/B/C/D
+    // 回答題目
     if (data.startsWith('answer=')) {
       const answer = data.split('=')[1];
       if (!userSessions[userId]) userSessions[userId] = { step: 0, answers: [] };
@@ -136,12 +126,12 @@ async function handleEvent(event) {
       session.answers.push(answer);
       session.step++;
 
-      // 如果題目還沒做完，送下一題
+      // 還有題目 → 出下一題
       if (session.step < questions.length) {
         return sendQuestion(event.replyToken, session);
       }
 
-      // 測驗完成
+      // 測驗完成 → 計算分數
       let totalScore = 0;
       session.answers.forEach((ans, idx) => {
         totalScore += questions[idx].scores[ans] || 0;
@@ -151,16 +141,11 @@ async function handleEvent(event) {
       session.step = 0;
       session.answers = [];
 
-      // 送結果
       return sendResult(event.replyToken, totalScore);
     }
   }
 
-  // 其他事件
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: '請點選圖文選單武林試煉榜，並用按鈕回答每一題。'
-  });
+  return null;
 }
 
 // Webhook
