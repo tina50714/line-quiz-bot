@@ -163,7 +163,8 @@ async function handleEvent(event) {
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
-app.list
+app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
 
 
 
