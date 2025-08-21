@@ -23,7 +23,7 @@ const questions = [
       C: '表面有新生紅色肉芽',
       D: '顏色變暗、有黑色壞死組織'
     },
-    scores: { A: 3, B: 1, C: 2, D: 4 }
+    scores: { A: 2, B: 0, C: 1, D: 3 }
   },
   {
     q: 'Q2. 最近換藥時有發現什麼異常？',
@@ -33,7 +33,7 @@ const questions = [
       C: '每次都長一樣，沒什麼變化',
       D: '沒注意，沒看清楚'
     },
-    scores: { A: 3, B: 2, C: 1, D: 0 }
+    scores: { A: 3, B: 1, C: 2, D: 0 }
   },
   {
     q: 'Q3. 傷口周圍皮膚狀況如何？',
@@ -43,7 +43,7 @@ const questions = [
       C: '很乾，有點裂開',
       D: '變黑變硬'
     },
-    scores: { A: 3, B: 2, C: 1, D: 4 }
+    scores: { A: 2, B: 1, C: 1, D: 3 }
   },
   {
     q: 'Q4. 最近換藥或照護的頻率是？',
@@ -53,7 +53,7 @@ const questions = [
       C: '偶爾才換',
       D: '都沒換'
     },
-    scores: { A: 3, B: 2, C: 1, D: 0 }
+    scores: { A: 3, B: 1, C: 3, D: 4 }
   }
 ];
 
@@ -146,7 +146,7 @@ async function handleEvent(event) {
         actions: [
           {
             type: 'message',
-            label: '重新測驗',
+            label: '重新試煉',
             text: '試煉開始' // 點擊後會再觸發開始
           }
         ]
@@ -157,13 +157,14 @@ async function handleEvent(event) {
   // 非測驗文字回應
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: '請點擊「試煉開始」來啟動測驗，或直接選擇題目選項 A/B/C/D。'
+    text: '請點擊「武林試煉榜」來啟動測驗，或直接選擇題目選項 A/B/C/D。'
   });
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
 
 
 
