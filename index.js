@@ -33,7 +33,7 @@ const questions = [
       C: '每次都長一樣，沒什麼變化',
       D: '沒注意，沒看清楚'
     },
-    scores: { A: 3, B: 1, C: 2, D: 0 }
+    scores: { A: 3, B: 1, C: 0, D: 0 }
   },
   {
     q: 'Q3. 傷口周圍皮膚狀況如何？',
@@ -53,17 +53,17 @@ const questions = [
       C: '偶爾才換',
       D: '都沒換'
     },
-    scores: { A: 3, B: 1, C: 3, D: 4 }
+    scores: { A: 1, B: 0, C: 2, D: 3 }
   }
 ];
 
 // 結果對應（依總分區間）
 function getResult(totalScore) {
-  if (totalScore <= 3)
+  if (totalScore <= 4)
     return '停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
-  else if (totalScore <= 6)
+  else if (totalScore <= 7)
     return '小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
-  else if (totalScore <= 9)
+  else if (totalScore <= 10)
     return '紅腫魔王 · 腐氣天君\n傷口可能處於「發炎期或感染期」\n建議：加強清潔與換藥頻率，注意是否需醫師評估使用抗生素或清創。';
   else
     return '黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
@@ -164,6 +164,7 @@ async function handleEvent(event) {
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
 
 
 
