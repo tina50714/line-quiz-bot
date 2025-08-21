@@ -59,7 +59,7 @@ const questions = [
 
 // 結果對應（依總分區間）
 function getResult(totalScore) {
-  if (totalScore <= 5)
+  if (totalScore <= 3)
     return '停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
   else if (totalScore <= 6)
     return '小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
@@ -164,6 +164,7 @@ async function handleEvent(event) {
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
 
 
 
