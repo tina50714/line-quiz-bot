@@ -11,80 +11,60 @@ const client = new line.Client(config);
 const app = express();
 app.use(express.json());
 
-// 儲存用戶答案暫存
+// 用戶測驗狀態
 const userSessions = {};
 
 // 測驗題目
 const questions = [
   {
-    q: "問題 1: 你的傷口目前情況？",
-    options: { A: "輕微紅腫", B: "明顯紅腫", C: "開始長肉", D: "黑黃壞死" }
+    q: '1.換藥時，傷口「顏色」看起來如何？',
+    options: {
+      A: '紅紅嫩嫩，好像新鮮的肉色',
+      B: '顏色有點暗淡、不太亮',
+      C: '黃色或黑色一大片'
+    },
+    score: { A: 0, B: 1, C: 2 }
   },
   {
-    q: "問題 2: 你有規律換藥嗎？",
-    options: { A: "每天", B: "隔天", C: "不太固定", D: "幾乎沒換" }
+    q: '2.換藥時，傷口有沒有「滲出液」？',
+    options: {
+      A: '沒有或像清水，沒味道',
+      B: '有一點點，顏色黃黃的，味道不明顯',
+      C: '很多滲液，黃色/綠色、濃稠的，還有臭味'
+    },
+    score: { A: 0, B: 1, C: 2 }
   },
   {
-    q: "問題 3: 你有保持傷口清潔嗎？",
-    options: { A: "完全保持", B: "大部分保持", C: "偶爾", D: "幾乎沒" }
+    q: '3.這一週比起上週，傷口變化如何？',
+    options: {
+      A: '看起來有縮小，還有新皮慢慢長出來',
+      B: '差不多，沒什麼改變',
+      C: '傷口反而變大，或更深狀態'
+    },
+    score: { A: 0, B: 1, C: 2 }
+  },
+  {
+    q: '4.觀察傷口「周圍的皮膚」狀態？',
+    options: {
+      A: '邊緣平平順順，皮膚看起來正常',
+      B: '皮膚有點硬，邊緣翹起來',
+      C: '紅紅腫腫，還會痛，皮膚破皮'
+    },
+    score: { A: 0, B: 1, C: 2 }
   }
 ];
 
-// 啟動測驗
-app.post('/webhook', async (req, res) => {
-  const events = req.body.events;
-  for (const event of events) {
-    if (event.type !== 'message' || event.message.type !== 'text') continue;
-    const userId = event.source.userId;
-    const msg = event.message.text;
+// 測驗結果對應
+const results = [
+  { min: 0, max: 2, title: '📌 建議', advice: '傷口正在長肉，穩定成長且變好，繼續加油。', img: 'https://tina50714.github.io/role-cards/1.png' },
+  { min: 3, max: 4, title: '📌 建議', advice: '傷口暫時原地踏步了，可能需要調整換藥方式或注意慢性病控制情況。', img: 'https://tina50714.github.io/role-cards/2.png' },
+  { min: 5, max: 6, title: '📌 建議', advice: '傷口紅腫、滲液變多，可能在發炎，建議盡快電話諮詢醫院或前往急診治療。', img: 'https://tina50714.github.io/role-cards/3.png' },
+  { min: 7, max: 8, title: '📌 建議', advice: '傷口黑黑黃黃一大片，需要手術清掉壞肉，讓傷口長好肉', img: 'https://tina50714.github.io/role-cards/4.png' }
+];
 
-    // 初始化用戶測驗狀態
-    if (!userSessions[userId]) {
-      userSessions[userId] = { inQuiz: false, score: 0, current: 0 };
-    }
-
-    const session = userSessions[userId];
-
-    // 啟動測驗
-    if (msg === '試煉開始') {
-      session.inQuiz = true;
-      session.score = 0;
-      session.current = 0;
-      await sendQuestion(event, questions[session.current]);
-      continue;
-    }
-
-    // 處理答題
-    if (session.inQuiz) {
-      const currentQ = questions[session.current];
-      if (['A', 'B', 'C', 'D'].includes(msg)) {
-        // 計分邏輯，可自行調整
-        const scoreMap = { A: 1, B: 2, C: 3, D: 4 };
-        session.score += scoreMap[msg];
-        session.current++;
-
-        if (session.current < questions.length) {
-          await sendQuestion(event, questions[session.current]);
-        } else {
-          await sendResult(event, session.score);
-          session.inQuiz = false;
-        }
-      } else {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '請點擊題目按鈕來作答'
-        });
-      }
-      continue;
-    }
-
-    // 非測驗文字不回應
-  }
-  res.sendStatus(200);
-});
-
-// 發送題目
-function sendQuestion(event, q) {
+// 發送題目按鈕
+function sendQuestion(event, qIndex) {
+  const q = questions[qIndex];
   const actions = Object.entries(q.options).map(([k, v]) => ({
     type: 'message',
     label: `${k}: ${v}`,
@@ -97,68 +77,128 @@ function sendQuestion(event, q) {
     template: {
       type: 'buttons',
       text: q.q,
-      actions: actions
+      actions
     }
   });
 }
 
-// 發送測驗結果
-function sendResult(event, score) {
-  let result = {};
-
-  if (score <= 2) {
-    result = {
-      title: '📌 建議',
-      message: '傷口正在長肉，穩定成長且變好，繼續加油',
-      img: 'https://tina50714.github.io/role-cards/1.png'
-    };
-  } else if (score <= 4) {
-    result = {
-      title: '📌 建議',
-      message: '傷口暫時原地踏步了，可能需要調整換藥方式或注意慢性病控制情況',
-      img: 'https://tina50714.github.io/role-cards/2.png'
-    };
-  } else if (score <= 6) {
-    result = {
-      title: '📌 建議',
-      message: '傷口紅腫、滲液變多，可能在發炎，建議盡快電話諮詢醫院或前往急診治療',
-      img: 'https://tina50714.github.io/role-cards/3.png'
-    };
-  } else {
-    result = {
-      title: '📌 建議',
-      message: '傷口黑黑黃黃一大片，需要手術清掉壞肉，讓傷口長好肉',
-      img: 'https://tina50714.github.io/role-cards/4.png'
-    };
-  }
-
-  const flexMessage = {
-    type: 'flex',
-    altText: `${result.title} - ${result.message}`,
-    contents: {
-      type: 'bubble',
-      hero: {
-        type: 'image',
-        url: result.img,
-        size: 'full',
-        aspectRatio: '20:13',
-        aspectMode: 'cover'
-      },
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'md',
-        contents: [
-          { type: 'text', text: result.title, weight: 'bold', size: 'lg' },
-          { type: 'text', text: result.message, wrap: true, size: 'md' }
-        ]
-      }
-    }
-  };
-
-  return client.replyMessage(event.replyToken, flexMessage);
+// 計算結果
+function calcResult(score) {
+  return results.find(r => score >= r.min && score <= r.max);
 }
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Server is running...');
+// 事件處理
+app.post('/webhook', (req, res) => {
+  Promise.all(req.body.events.map(handleEvent))
+    .then(() => res.status(200).end())
+    .catch(err => {
+      console.error(err);
+      res.status(500).end();
+    });
+});
+
+async function handleEvent(event) {
+  if (event.type !== 'message' || event.message.type !== 'text') return;
+
+  const userId = event.source.userId;
+  const userInput = event.message.text.trim();
+
+  // 初始化用戶資料
+  if (!userSessions[userId]) userSessions[userId] = { inQuiz: false, currentQ: 0, score: 0 };
+
+  const session = userSessions[userId];
+
+  // 啟動測驗
+  if (userInput === '試煉開始') {
+    session.inQuiz = true;
+    session.currentQ = 0;
+    session.score = 0;
+    return sendQuestion(event, 0);
+  }
+
+  // 僅在測驗中處理答案
+  if (session.inQuiz) {
+    const currentQuestion = questions[session.currentQ];
+    if (!['A','B','C'].includes(userInput)) {
+      // 非按鈕回答提醒
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '請點擊題目按鈕來作答'
+      });
+    }
+
+    // 計分
+    session.score += currentQuestion.score[userInput];
+    session.currentQ++;
+
+    // 如果還有題目
+    if (session.currentQ < questions.length) {
+      return sendQuestion(event, session.currentQ);
+    } else {
+      // 測驗結束，回傳 Flex Message
+      session.inQuiz = false;
+      const result = calcResult(session.score);
+
+      return client.replyMessage(event.replyToken, {
+        type: 'flex',
+        altText: `${result.title}\n${result.advice}`,
+        contents: {
+          type: 'bubble',
+          size: 'giga',
+          hero: {
+            type: 'image',
+            url: result.img,
+            size: 'full',
+            aspectMode: 'fit', // 保留完整比例
+            aspectRatio: '1.91:1',
+            gravity: 'center'
+          },
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'md',
+            contents: [
+              {
+                type: 'text',
+                text: result.title,
+                weight: 'bold',
+                size: 'lg',
+                wrap: true
+              },
+              {
+                type: 'text',
+                text: result.advice,
+                size: 'md',
+                wrap: true
+              }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'sm',
+            contents: [
+              {
+                type: 'button',
+                style: 'primary',
+                action: {
+                  type: 'message',
+                  label: '重新測驗',
+                  text: '試煉開始'
+                }
+              }
+            ]
+          }
+        }
+      });
+    }
+  }
+
+  // 非測驗期間，輸入文字不回覆
+  return;
+}
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
 });
