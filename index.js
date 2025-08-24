@@ -23,7 +23,7 @@ const questions = [
   },
   {
     q: '2.換藥時，傷口有沒有「滲出液」？',
-    options: { A: '沒有或像清水，沒味道', B: '有一點點，顏色黃黃的，味道不明顯', C: '很多滲液，黃色/綠色、濃稠的，還有臭味' },
+    options: { A: '無或像清水，沒味道', B: '有一點，黃色，味道不明顯', C: '滲液多，黃或綠色、濃稠、有臭味' },
     score: { A: 0, B: 1, C: 2 }
   },
   {
@@ -152,3 +152,4 @@ async function handleEvent(event) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
