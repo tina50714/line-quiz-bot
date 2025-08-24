@@ -56,10 +56,10 @@ const questions = [
 
 // 測驗結果對應
 const results = [
-  { min: 0, max: 2, title: '📌 建議👉', advice: '傷口正在長肉，穩定變好，繼續加油。', img: 'https://tina50714.github.io/role-cards/1.png' },
-  { min: 3, max: 4, title: '📌 建議👉', advice: '傷口暫時停住了，可能需要調整換藥或壓力。', img: 'https://tina50714.github.io/role-cards/2.png' },
-  { min: 5, max: 6, title: '📌 建議👉', advice: '傷口紅腫、流水變多，可能在發炎，建議快回報醫護。', img: 'https://tina50714.github.io/role-cards/3.png' },
-  { min: 7, max: 8, title: '📌 建議👉', advice: '傷口黑黑黃黃一大片，需要專業清掉壞肉，讓傷口才能好', img: 'https://tina50714.github.io/role-cards/4.png' }
+  { min: 0, max: 2, title: '📌 建議', advice: '傷口正在長肉，穩定成長且變好，繼續加油。', img: 'https://tina50714.github.io/role-cards/1.png' },
+  { min: 3, max: 4, title: '📌 建議', advice: '傷口暫時原地踏步了，可能需要調整換藥方式或注意慢性病控制情況。', img: 'https://tina50714.github.io/role-cards/2.png' },
+  { min: 5, max: 6, title: '📌 建議', advice: '傷口紅腫、滲液變多，可能在發炎，建議盡快電話諮詢醫院或前往急診治療。', img: 'https://tina50714.github.io/role-cards/3.png' },
+  { min: 7, max: 8, title: '📌 建議', advice: '傷口黑黑黃黃一大片，需要手術清掉壞肉，讓傷口長好肉', img: 'https://tina50714.github.io/role-cards/4.png' }
 ];
 
 // 發送題目按鈕
@@ -160,4 +160,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
 });
+
 
