@@ -113,10 +113,9 @@ async function handleEvent(event) {
     session.step = 0;
     session.answers = [];
     return sendQuestion(event, questions[0]);
-  }
-
+  } 
   // 如果已經開始測驗，接收 A/B/C/D
-  if (['A', 'B', 'C', 'D'].includes(msg.toUpperCase())) {
+  else if (['A', 'B', 'C', 'D'].includes(msg.toUpperCase())) {
     session.answers.push(msg.toUpperCase());
     session.step++;
 
@@ -147,39 +146,21 @@ async function handleEvent(event) {
           {
             type: 'message',
             label: '重新試煉',
-            text: '試煉開始' // 點擊後會再觸發開始
+            text: '試煉開始'
           }
         ]
       }
     });
+  } 
+  // 非測驗文字回應
+  else {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '請點擊「武林試煉榜」來啟動測驗，或直接選擇題目選項 A/B/C/D。'
+    });
   }
-
-// 非測驗文字回應
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: '請點擊「武林試煉榜」來啟動測驗，或直接選擇題目選項 A/B/C/D。'
-  });
 }
 
-
-  
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
