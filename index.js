@@ -101,11 +101,10 @@ async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
   const userId = event.source.userId;
-  const userInput = event.message.text.trim();
+  const userInput = (event.message.text || '').trim().toUpperCase();
 
   // 初始化用戶資料
   if (!userSessions[userId]) userSessions[userId] = { inQuiz: false, currentQ: 0, score: 0 };
-
   const session = userSessions[userId];
 
   // 啟動測驗
@@ -119,6 +118,7 @@ async function handleEvent(event) {
   // 僅在測驗中處理答案
   if (session.inQuiz) {
     const currentQuestion = questions[session.currentQ];
+
     if (!['A','B','C'].includes(userInput)) {
       // 非按鈕回答提醒
       return client.replyMessage(event.replyToken, {
@@ -127,7 +127,7 @@ async function handleEvent(event) {
       });
     }
 
-    // 計分
+    // 計分 & 更新題目索引
     session.score += currentQuestion.score[userInput];
     session.currentQ++;
 
@@ -149,8 +149,8 @@ async function handleEvent(event) {
             type: 'image',
             url: result.img,
             size: 'full',
-            aspectMode: 'fit', // 保留完整比例
-            aspectRatio: '6:4',
+            aspectMode: 'fit',
+            aspectRatio: '3:4',
             gravity: 'center'
           },
           body: {
@@ -202,4 +202,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
 });
-
