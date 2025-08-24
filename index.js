@@ -63,7 +63,7 @@ const results = [
 ];
 
 // 發送題目按鈕
-async function sendQuestion(event, qIndex) {
+function sendQuestion(event, qIndex) {
   const q = questions[qIndex];
   const actions = Object.entries(q.options).map(([k, v]) => ({
     type: 'message',
@@ -71,7 +71,7 @@ async function sendQuestion(event, qIndex) {
     text: k
   }));
 
-  await client.replyMessage(event.replyToken, {
+  return client.replyMessage(event.replyToken, {
     type: 'template',
     altText: q.q,
     template: {
@@ -101,10 +101,11 @@ async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
   const userId = event.source.userId;
-  const userInput = (event.message.text || '').trim().toUpperCase();
+  const userInput = event.message.text.trim();
 
   // 初始化用戶資料
   if (!userSessions[userId]) userSessions[userId] = { inQuiz: false, currentQ: 0, score: 0 };
+
   const session = userSessions[userId];
 
   // 啟動測驗
@@ -112,37 +113,33 @@ async function handleEvent(event) {
     session.inQuiz = true;
     session.currentQ = 0;
     session.score = 0;
-    await sendQuestion(event, 0);
-    return;
+    return sendQuestion(event, 0);
   }
 
   // 僅在測驗中處理答案
   if (session.inQuiz) {
     const currentQuestion = questions[session.currentQ];
-
     if (!['A','B','C'].includes(userInput)) {
       // 非按鈕回答提醒
-      await client.replyMessage(event.replyToken, {
+      return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '請點擊題目按鈕來作答'
       });
-      return;
     }
 
-    // 計分 & 更新題目索引
+    // 計分
     session.score += currentQuestion.score[userInput];
     session.currentQ++;
 
     // 如果還有題目
     if (session.currentQ < questions.length) {
-      await sendQuestion(event, session.currentQ);
-      return;
+      return sendQuestion(event, session.currentQ);
     } else {
       // 測驗結束，回傳 Flex Message
       session.inQuiz = false;
       const result = calcResult(session.score);
 
-      await client.replyMessage(event.replyToken, {
+      return client.replyMessage(event.replyToken, {
         type: 'flex',
         altText: `${result.title}\n${result.advice}`,
         contents: {
@@ -152,7 +149,7 @@ async function handleEvent(event) {
             type: 'image',
             url: result.img,
             size: 'full',
-            aspectMode: 'fit',
+            aspectMode: 'fit', // 保留完整比例
             aspectRatio: '3:4',
             gravity: 'center'
           },
@@ -194,7 +191,6 @@ async function handleEvent(event) {
           }
         }
       });
-      return;
     }
   }
 
