@@ -74,11 +74,7 @@ function sendQuestion(event, qIndex) {
   return client.replyMessage(event.replyToken, {
     type: 'template',
     altText: q.q,
-    template: {
-      type: 'buttons',
-      text: q.q,
-      actions
-    }
+    template: { type: 'buttons', text: q.q, actions }
   });
 }
 
@@ -87,14 +83,17 @@ function calcResult(score) {
   return results.find(r => score >= r.min && score <= r.max);
 }
 
-// 事件處理
-app.post('/webhook', (req, res) => {
-  Promise.all(req.body.events.map(handleEvent))
-    .then(() => res.status(200).end())
-    .catch(err => {
-      console.error(err);
-      res.status(500).end();
-    });
+// 優化 webhook
+app.post('/webhook', async (req, res) => {
+  try {
+    for (const event of req.body.events) {
+      await handleEvent(event);
+    }
+    res.status(200).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).end();
+  }
 });
 
 async function handleEvent(event) {
@@ -103,9 +102,7 @@ async function handleEvent(event) {
   const userId = event.source.userId;
   const userInput = event.message.text.trim();
 
-  // 初始化用戶資料
   if (!userSessions[userId]) userSessions[userId] = { inQuiz: false, currentQ: 0, score: 0 };
-
   const session = userSessions[userId];
 
   // 啟動測驗
@@ -116,26 +113,18 @@ async function handleEvent(event) {
     return sendQuestion(event, 0);
   }
 
-  // 僅在測驗中處理答案
   if (session.inQuiz) {
     const currentQuestion = questions[session.currentQ];
     if (!['A','B','C'].includes(userInput)) {
-      // 非按鈕回答提醒
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '請點擊題目按鈕來作答'
-      });
+      return client.replyMessage(event.replyToken, { type: 'text', text: '請點擊題目按鈕來作答' });
     }
 
-    // 計分
     session.score += currentQuestion.score[userInput];
     session.currentQ++;
 
-    // 如果還有題目
     if (session.currentQ < questions.length) {
       return sendQuestion(event, session.currentQ);
     } else {
-      // 測驗結束，回傳 Flex Message
       session.inQuiz = false;
       const result = calcResult(session.score);
 
@@ -149,8 +138,7 @@ async function handleEvent(event) {
             type: 'image',
             url: result.img,
             size: 'full',
-            aspectMode: 'fit', // 保留完整比例
-            aspectRatio: '4:3',
+            aspectMode: 'fit', 
             gravity: 'center'
           },
           body: {
@@ -158,19 +146,8 @@ async function handleEvent(event) {
             layout: 'vertical',
             spacing: 'md',
             contents: [
-              {
-                type: 'text',
-                text: result.title,
-                weight: 'bold',
-                size: 'lg',
-                wrap: true
-              },
-              {
-                type: 'text',
-                text: result.advice,
-                size: 'md',
-                wrap: true
-              }
+              { type: 'text', text: result.title, weight: 'bold', size: 'lg', wrap: true },
+              { type: 'text', text: result.advice, size: 'md', wrap: true }
             ]
           },
           footer: {
@@ -178,29 +155,18 @@ async function handleEvent(event) {
             layout: 'vertical',
             spacing: 'sm',
             contents: [
-              {
-                type: 'button',
-                style: 'primary',
-                action: {
-                  type: 'message',
-                  label: '重新測驗',
-                  text: '試煉開始'
-                }
-              }
+              { type: 'button', style: 'primary', action: { type: 'message', label: '重新測驗', text: '試煉開始' } }
             ]
           }
         }
       });
     }
   }
-
-  // 非測驗期間，輸入文字不回覆
-  return;
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+
 
 
