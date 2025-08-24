@@ -16,57 +16,53 @@ const userSessions = {};
 // 小測驗題目與分數對應
 const questions = [
   {
-    q: 'Q1. 傷口現在有什麼變化？',
+    q: 'Q1. 傷口看起來的顏色？',
     options: {
-      A: '紅腫熱痛、滲液增多',
-      B: '看起來乾乾的、沒什麼變化',
-      C: '表面有新生紅色肉芽',
-      D: '顏色變暗、有黑色壞死組織'
+      A: '紅紅嫩嫩，好像新鮮的肉色',
+      B: '顏色有點暗淡、不太亮',
+      C: '黃黃或黑黑一大片'
     },
-    scores: { A: 3, B: 0, C: 1, D: 5 }
+    scores: { A: 0, B: 1, C: 2 }
   },
   {
-    q: 'Q2. 最近換藥時有發現什麼異常？',
+    q: 'Q2. 傷口有沒有流水？',
     options: {
-      A: '分泌物變多或有臭味',
-      B: '傷口顏色變淡、變小',
-      C: '每次都長一樣，沒什麼變化',
-      D: '黃色或黑色組織變多'
+      A: '幾乎沒什麼，像清水，沒味道',
+      B: '有一點點，顏色黃黃的，味道不明顯',
+      C: '流很多，膿膿的，還有臭味'
     },
-    scores: { A: 3, B: 1, C: 0, D: 4 }
+    scores: { A: 0, B: 1, C: 2 }
   },
   {
-    q: 'Q3. 傷口周圍皮膚狀況如何？',
+    q: 'Q3. 這一週比起上週，傷口變化如何？',
     options: {
-      A: '有點紅，有點腫',
-      B: '看起來還不錯',
-      C: '很乾，有點裂開',
-      D: '變黑變硬'
+      A: '看起來有縮小，還有新皮慢慢長出來',
+      B: '差不多，沒什麼改變',
+      C: '反而變大，或更深'
     },
-    scores: { A: 2, B: 1, C: 1, D: 3 }
+    scores: { A: 0, B: 1, C: 2 }
   },
   {
-    q: 'Q4. 最近換藥或照護的頻率是？',
+    q: 'Q4. 傷口周圍的皮膚？',
     options: {
-      A: '一天換好幾次',
-      B: '每天固定一次',
-      C: '偶爾才換',
-      D: '都沒換'
+      A: '邊緣平平順順，皮膚看起來正常',
+      B: '皮膚有點硬，邊緣翹起來',
+      C: '紅紅腫腫，還會痛，皮膚破掉'
     },
-    scores: { A: 2, B: 1, C: 3, D: 3 }
+    scores: { A: 0, B: 1, C: 2 }
   }
 ];
 
 // 結果對應（依總分區間）
 function getResult(totalScore) {
-  if (totalScore <= 3)
-    return '停滯劍士 · 穩如山\n傷口可能「停在某階段沒有改善」\n建議：檢視敷料選擇與照護一致性。';
+  if (totalScore <= 2)
+    return ' 🧭增生期（生肌行者）\n👉 傷口正在長肉，穩定變好，繼續加油。';
+  else if (totalScore <= 4)
+    return ' 🧭停滯期（卡關小俠）\n👉 傷口暫時停住了，可能需要調整換藥或壓力。';
   else if (totalScore <= 6)
-    return '小肉潤 · 百草谷谷主\n傷口正處於「增生期、進步中」\n建議：維持濕潤環境、避免過度清創，提供充足營養與正確照護。';
-  else if (totalScore <= 9)
-    return '紅腫魔王 · 腐氣天君\n傷口可能處於「發炎期或感染期」\n建議：加強清潔與換藥頻率，注意是否需醫師評估使用抗生素或清創。';
+    return ' 🧭發炎期（紅腫小魔王）\n👉 傷口紅腫、流水變多，可能在發炎，建議快回報醫護。';
   else
-    return '黑氣掌門 · 枯木尊者\n傷口可能有「壞死組織或難癒傾向」\n建議：由專業醫療團隊評估是否需清創或其他治療。';
+    return '🧭 壞死期（枯木宗者）\n👉 傷口黑黑黃黃一大片，需要專業清掉壞肉，讓傷口才能好。';
 }
 
 // 用按鈕傳送題目
@@ -74,7 +70,7 @@ function sendQuestion(event, q) {
   const actions = Object.entries(q.options).map(([k, v]) => ({
     type: 'message',
     label: `${k}: ${v}`,
-    text: k // 點擊後傳回 A/B/C/D
+    text: k // 點擊後傳回 A/B/C
   }));
 
   return client.replyMessage(event.replyToken, {
@@ -114,8 +110,8 @@ async function handleEvent(event) {
     session.answers = [];
     return sendQuestion(event, questions[0]);
   } 
-  // 如果已經開始測驗，接收 A/B/C/D
-  else if (['A', 'B', 'C', 'D'].includes(msg.toUpperCase())) {
+  // 如果已經開始測驗，接收 A/B/C
+  else if (['A', 'B', 'C'].includes(msg.toUpperCase())) {
     session.answers.push(msg.toUpperCase());
     session.step++;
 
@@ -153,11 +149,10 @@ async function handleEvent(event) {
     });
   } 
 
-   // 其他情況 → 不回覆
+  // 其他情況 → 不回覆
   return null;
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
-
