@@ -152,15 +152,12 @@ async function handleEvent(event) {
       }
     });
   } 
-  // 非測驗文字回應
-  else {
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '請點擊「武林試煉榜」來啟動測驗，或直接選擇題目選項 A/B/C/D。'
-    });
-  }
+
+   // 其他情況 → 不回覆
+  return null;
 }
 
 // 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`LINE Bot running at port ${port}`));
+
