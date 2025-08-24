@@ -150,7 +150,7 @@ async function handleEvent(event) {
             url: result.img,
             size: 'full',
             aspectMode: 'fit', // 保留完整比例
-            aspectRatio: '4:3i',
+            aspectRatio: '4:3',
             gravity: 'center'
           },
           body: {
@@ -202,4 +202,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
 });
+
 
